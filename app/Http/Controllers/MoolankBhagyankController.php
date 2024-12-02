@@ -30,7 +30,7 @@ class MoolankBhagyankController extends Controller
         // Extract day, month, and year
         [$year, $month, $day] = explode('-', $dob);
 
-        // Functions for Moolank and Bhagyank
+        // Helper function to reduce numbers to single digits
         function reduceToSingleDigit($number)
         {
             while ($number > 9) {
@@ -39,11 +39,13 @@ class MoolankBhagyankController extends Controller
             return $number;
         }
 
+        // Moolank Calculation
         function calculateMoolank($day)
         {
             return reduceToSingleDigit(array_sum(str_split($day)));
         }
 
+        // Bhagyank Calculation
         function calculateBhagyank($day, $month, $year)
         {
             $daySum = reduceToSingleDigit(array_sum(str_split($day)));
@@ -54,11 +56,35 @@ class MoolankBhagyankController extends Controller
             return reduceToSingleDigit($total);
         }
 
+        // Loshu Chart Calculation
+        function calculateLoshuChart($dob)
+        {
+            // Flatten all digits from dob
+            $digits = array_map('intval', str_split(str_replace('-', '', $dob)));
+
+            // Initialize Loshu chart grid
+            $loshuChart = [
+                1 => 0, 2 => 0, 3 => 0, 4 => 0, 5 => 0,
+                6 => 0, 7 => 0, 8 => 0, 9 => 0
+            ];
+
+            // Count occurrences of each digit
+            foreach ($digits as $digit) {
+                if (array_key_exists($digit, $loshuChart)) {
+                    $loshuChart[$digit]++;
+                }
+            }
+
+            return $loshuChart;
+        }
+
         // Calculate values
         $moolank = calculateMoolank($day);
         $bhagyank = calculateBhagyank($day, $month, $year);
+        $loshuChart = calculateLoshuChart($dob);
 
         // Return view with results
-        return view('result', compact('name', 'gender', 'dob', 'moolank', 'bhagyank'));
+        return view('result', compact('name', 'gender', 'dob', 'moolank', 'bhagyank', 'loshuChart'));
     }
+
 }
