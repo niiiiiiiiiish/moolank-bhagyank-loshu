@@ -114,7 +114,6 @@ class MoolankBhagyankController extends Controller
                 ];
             }
         }
-
         return compact('present', 'missing');
     }
 
@@ -134,5 +133,6 @@ class MoolankBhagyankController extends Controller
         ];
 
         return $meanings[$number] . ($isPresent ? " Strength is present." : " Area to work on.");
+
     }
 }
