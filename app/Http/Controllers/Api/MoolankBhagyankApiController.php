@@ -38,6 +38,9 @@ class MoolankBhagyankApiController extends Controller
             ->where('combination', $combination)
             ->value('message');
 
+        // Generate Loshu Grid
+        $loshuGrid = $this->generateLoshuGrid($dob);
+
         // Return the response
         return response()->json([
             'success' => true,
@@ -49,6 +52,7 @@ class MoolankBhagyankApiController extends Controller
                 'bhagyank' => $bhagyank,
                 'combination' => $combination,
                 'message' => $message ?? 'No data available for this combination',
+                'loshu_grid' => $loshuGrid,
             ],
         ]);
     }
@@ -77,5 +81,44 @@ class MoolankBhagyankApiController extends Controller
 
         $total = $daySum + $monthSum + $yearSum;
         return $this->reduceToSingleDigit($total);
+    }
+
+    // Helper method to generate Loshu Grid
+    private function generateLoshuGrid($dob)
+    {
+        // Extract all digits from DOB
+        $digits = array_map('intval', str_split(str_replace('-', '', $dob)));
+
+        // Calculate frequency of each digit
+        $frequency = array_count_values($digits);
+
+        // Fetch details for all numbers (1-9)
+        $details = DB::table('loshu_numbers')->get();
+
+        // Separate present and missing numbers
+        $presentNumbers = [];
+        $missingNumbers = [];
+
+        foreach (range(1, 9) as $number) {
+            $numberDetails = $details->firstWhere('number', $number);
+
+            if ($numberDetails) {
+                $numberDetailsArray = (array) $numberDetails;
+
+                if (isset($frequency[$number])) {
+                    // Add frequency for present numbers
+                    $numberDetailsArray['frequency'] = $frequency[$number];
+                    $presentNumbers[] = $numberDetailsArray;
+                } else {
+                    // Add missing numbers without frequency
+                    $missingNumbers[] = $numberDetailsArray;
+                }
+            }
+        }
+
+        return [
+            'Present Numbers (Strengths)' => $presentNumbers,
+            'Missing Numbers (Areas to Work On)' => $missingNumbers,
+        ];
     }
 }
