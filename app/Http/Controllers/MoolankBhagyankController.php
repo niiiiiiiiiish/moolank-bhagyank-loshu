@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class MoolankBhagyankController extends Controller
 {
@@ -37,13 +38,16 @@ class MoolankBhagyankController extends Controller
         $bhagyank = $this->calculateBhagyank($year, $month, $day);
 
         // Loshu Chart Calculation
-        $loshuChart = $this->calculateLoshuChart($dob);
+        $loshuGrid = $this->generateLoshuGrid($dob);
 
-        // Interpret the Lo Shu Chart
-        $interpretation = $this->interpretLoShuChart($loshuChart);
+        // Get the corresponding message from the database
+        $combination = $moolank . $bhagyank;
+        $message = DB::table('combinations')
+            ->where('combination', $combination)
+            ->value('message');
 
         // Return the result view with all data
-        return view('result', compact('name', 'gender', 'dob', 'moolank', 'bhagyank', 'loshuChart', 'interpretation'));
+        return view('result', compact('name', 'gender', 'dob', 'moolank', 'bhagyank', 'combination', 'message', 'loshuGrid'));
     }
 
     // Reduce a number to a single digit
@@ -72,67 +76,42 @@ class MoolankBhagyankController extends Controller
         return $this->reduceToSingleDigit($total);
     }
 
-    // Calculate Lo Shu Chart
-    private function calculateLoshuChart($dob)
+    // Helper method to generate Loshu Grid
+    private function generateLoshuGrid($dob)
     {
-        // Flatten all digits from dob
+        // Extract all digits from DOB
         $digits = array_map('intval', str_split(str_replace('-', '', $dob)));
 
-        // Initialize Loshu chart grid
-        $loshuChart = [
-            1 => 0, 2 => 0, 3 => 0, 4 => 0, 5 => 0,
-            6 => 0, 7 => 0, 8 => 0, 9 => 0
-        ];
+        // Calculate frequency of each digit
+        $frequency = array_count_values($digits);
 
-        // Count occurrences of each digit
-        foreach ($digits as $digit) {
-            if (array_key_exists($digit, $loshuChart)) {
-                $loshuChart[$digit]++;
+        // Fetch details for all numbers (1-9)
+        $details = DB::table('loshu_numbers')->get();
+
+        // Separate present and missing numbers
+        $presentNumbers = [];
+        $missingNumbers = [];
+
+        foreach (range(1, 9) as $number) {
+            $numberDetails = $details->firstWhere('number', $number);
+
+            if ($numberDetails) {
+                $numberDetailsArray = (array) $numberDetails;
+
+                if (isset($frequency[$number])) {
+                    // Add frequency for present numbers
+                    $numberDetailsArray['frequency'] = $frequency[$number];
+                    $presentNumbers[] = $numberDetailsArray;
+                } else {
+                    // Add missing numbers without frequency
+                    $missingNumbers[] = $numberDetailsArray;
+                }
             }
         }
 
-        return $loshuChart;
-    }
-
-    // Interpret the Lo Shu Chart
-    private function interpretLoShuChart($loshuChart)
-    {
-        $present = [];
-        $missing = [];
-
-        foreach ($loshuChart as $number => $frequency) {
-            if ($frequency > 0) {
-                $present[] = [
-                    'number' => $number,
-                    'frequency' => $frequency,
-                    'meaning' => $this->getLoShuMeaning($number, true)
-                ];
-            } else {
-                $missing[] = [
-                    'number' => $number,
-                    'meaning' => $this->getLoShuMeaning($number, false)
-                ];
-            }
-        }
-        return compact('present', 'missing');
-    }
-
-    // Get the meaning of a number in Lo Shu Chart
-    private function getLoShuMeaning($number, $isPresent)
-    {
-        $meanings = [
-            1 => 'Strong individuality and leadership qualities.',
-            2 => 'Cooperation and balance in relationships.',
-            3 => 'Creativity and communication.',
-            4 => 'Hard work, stability, and practicality.',
-            5 => 'Adaptability and freedom.',
-            6 => 'Harmony, responsibility, and care for family.',
-            7 => 'Introspection and spiritual growth.',
-            8 => 'Ambition, material success, and financial growth.',
-            9 => 'Compassion, humanitarian efforts, and global thinking.'
+        return [
+            'Present Numbers (Strengths)' => $presentNumbers,
+            'Missing Numbers (Areas to Work On)' => $missingNumbers,
         ];
-
-        return $meanings[$number] . ($isPresent ? " Strength is present." : " Area to work on.");
-
     }
 }
